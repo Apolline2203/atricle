@@ -1,0 +1,156 @@
+---
+title: "R Notebook"
+output: github_document
+---
+
+```{r}
+library(gitcreds)
+gitcreds_set()
+```
+
+
+
+#on lit le fichier de métadonées et le stocke dans
+```{r}
+metadata<-read.csv(file="metadonee2.txt", sep = ";")
+```
+
+
+```{r}
+library(dada2); packageVersion("dada2")
+```
+```{r}
+path <- "/home/rstudio/atricle/sequences"
+list.files(path)
+```
+```{r}
+fn <- sort(list.files(path, pattern=".fastq.gz", full.names = TRUE))
+sample.names <- sapply(strsplit(basename(fn), ".fastq.gz"), `[`, 1)
+```
+
+```{r}
+plotQualityProfile(fn[1:2])
+```
+
+```{r}
+filtFn <- file.path(path, "filtered", paste0(sample.names, "_filt.fastq.gz"))
+```
+
+```{r}
+names(filtFn) <- sample.names
+```
+
+```{r}
+out <- filterAndTrim(fn, filtFn, truncLen=c(450),
+              maxN=0, maxEE=c(2), truncQ=2, rm.phix=TRUE,
+              compress=TRUE, multithread=FALSE) # On Windows set multithread=FALSE
+head(out)
+```
+
+```{r}
+errFn <- learnErrors(filtFn, multithread=TRUE)
+```
+
+```{r}
+plotErrors(errFn, nominalQ=TRUE)
+```
+
+```{r}
+dadaFn <- dada(filtFn, err=errFn, multithread=TRUE)
+```
+```{r}
+dadaFn[[1]]
+```
+#Les séquences sont déjà mergées donc j'ai passé l'étape "merge paired reads"
+```{r}
+seqtab <- makeSequenceTable(dadaFn)
+dim(seqtab)
+```
+```{r}
+# Inspect distribution of sequence lengths
+table(nchar(getSequences(seqtab)))
+```
+#Remove chimeras
+
+```{r}
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+dim(seqtab.nochim)
+sum(seqtab.nochim)/sum(seqtab)
+```
+#94 % de mes données sont conservées et 6% sont des chimères qui ont été enlevées.
+
+#Track reads through the pipeline
+```{r}
+getN <- function(x) sum(getUniques(x))
+track <- cbind(out, sapply(dadaFn, getN), rowSums(seqtab.nochim))
+
+colnames(track) <- c("input", "filtered", "denoiseFn", "nonchim")
+rownames(track) <- sample.names
+head(track)
+```
+#Assign taxonomy
+```{r}
+getwd()
+```
+
+```{r}
+taxa <- assignTaxonomy(seqtab.nochim, "/home/rstudio/atricle/silva_nr99_v138.1_train_set.fa.gz?download=1", multithread=TRUE)
+```
+
+```{r}
+taxa.print <- taxa 
+rownames(taxa.print) <- NULL
+head(taxa.print)
+```
+# Il n'y a pas de Mock sample dans notre jeu de données
+
+#Handoff to phyloseq
+
+```{r}
+library(phyloseq); packageVersion("phyloseq")
+```
+```{r}
+library(Biostrings); packageVersion("Biostrings")
+```
+
+```{r}
+library(ggplot2); packageVersion("ggplot2")
+```
+
+```{r}
+theme_set(theme_bw())
+```
+
+```{r}
+samples.out <- rownames(seqtab.nochim)
+subject <- sapply(strsplit(samples.out, "D"), `[`, 1)
+gender <- substr(subject,1,1)
+subject <- substr(subject,2,999)
+day <- as.integer(sapply(strsplit(samples.out, "D"), `[`, 2))
+samdf <- data.frame(Subject=subject, Gender=gender, Day=day)
+samdf$When <- "Early"
+samdf$When[samdf$Day>100] <- "Late"
+rownames(samdf) <- samples.out
+```
+#A modifier en fonction ma table de métadonées !!!!!!!!
+
+```{r}
+ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
+               sample_data(samdf), 
+               tax_table(taxa))
+```
+
+```{r}
+dna <- Biostrings::DNAStringSet(taxa_names(ps))
+names(dna) <- taxa_names(ps)
+ps <- merge_phyloseq(ps, dna)
+taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
+ps
+```
+
+#Visualize alpha-diversity:
+```{r}
+plot_richness(ps, x="isolation_source", measures=c("Shannon", "Simpson"), color="When")
+```
+
+bla
