@@ -12,7 +12,7 @@ gitcreds_set()
 
 #on lit le fichier de métadonées et le stocke dans
 ```{r}
-metadata<-read.csv(file="metadonee2.txt", sep = ";")
+metadata<-read.csv(file="metadonee3.csv", sep = ";")
 ```
 
 
@@ -121,6 +121,10 @@ library(ggplot2); packageVersion("ggplot2")
 theme_set(theme_bw())
 ```
 
+
+
+
+#attention faux
 ```{r}
 samples.out <- rownames(seqtab.nochim)
 subject <- sapply(strsplit(samples.out, "D"), `[`, 1)
@@ -128,11 +132,47 @@ gender <- substr(subject,1,1)
 subject <- substr(subject,2,999)
 day <- as.integer(sapply(strsplit(samples.out, "D"), `[`, 2))
 samdf <- data.frame(Subject=subject, Gender=gender, Day=day)
-samdf$When <- "Early"
-samdf$When[samdf$Day>100] <- "Late"
+samdf$When <- "Sediment"
+samdf$When[samdf$Day>100] <- "Biofilm"
 rownames(samdf) <- samples.out
 ```
 #A modifier en fonction ma table de métadonées !!!!!!!!
+
+
+
+
+
+
+
+```{r}
+samples.out <- metadata$Library.Name  # Utilisation de 'Library Name' comme identifiant d'échantillon
+type_echantillon <- metadata$type_echantillon
+localisation <- metadata$localisation
+```
+
+```{r}
+# Construire la table des métadonnées
+samdf <- data.frame(
+  Sample = samples.out,
+  Type = type_echantillon,
+  Location = localisation
+)
+```
+
+
+```{r}
+# Utiliser les noms des échantillons comme identifiants
+rownames(samdf) <- samples.out
+
+# Aperçu des métadonnées créées
+head(samdf)
+```
+
+
+
+
+
+
 
 ```{r}
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
@@ -152,5 +192,203 @@ ps
 ```{r}
 plot_richness(ps, x="isolation_source", measures=c("Shannon", "Simpson"), color="When")
 ```
+# Première figure : barraplot des phylums : 
+#charger les librairies
+```{r}
+library(phyloseq)
+library(ggplot2)
+```
+# Charger l'objet phyloseq (ps)
+# Assurez-vous que votre objet ps est correctement configuré
+# Vérifiez que votre objet contient des données OTU, taxonomiques et d'échantillons
 
-bla
+```{r}
+ps
+```
+
+
+# Transformer les données en pourcentages (abondances relatives)
+```{r}
+ps_relative <- transform_sample_counts(ps, function(x) x / sum(x) * 100)
+```
+
+
+# Regrouper les données par le niveau taxonomique souhaité (par exemple, le phylum)
+```{r}
+ps_phylum <- tax_glom(ps_relative, taxrank = "Phylum")
+```
+```{r}
+# Préparer les données pour ggplot
+df <- psmelt(ps_phylum) # Convertit les données phyloseq en data.frame
+df$Phylum <- as.character(df$Phylum)
+df$Phylum[is.na(df$Phylum)] <- "Unassigned" # Gérer les taxons non assignés
+
+# Trier les phylums par abondance moyenne
+top_phyla <- names(sort(tapply(df$Abundance, df$Phylum, mean), decreasing = TRUE)[1:15])
+df$Phylum <- factor(df$Phylum, levels = c(top_phyla, "Other"))
+
+# Regrouper les phylums moins abondants sous "Other"
+df$Phylum[!(df$Phylum %in% top_phyla)] <- "Other"
+
+# Créer le barplot empilé
+ggplot(df, aes(x = Sample, y = Abundance, fill = Phylum)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values = c(
+    rainbow(length(unique(df$Phylum))) # Génère des couleurs pour chaque phylum
+  )) +
+  labs(x = "Samples", y = "Relative Abundance (%)", fill = "Phylum") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#figure heat maps :
+```{r}
+# Charger les bibliothèques nécessaires
+library(phyloseq)
+library(pheatmap)
+library(viridis)
+
+# Convertir les données en abondances relatives
+ps_relative <- transform_sample_counts(ps, function(x) x / sum(x) * 100)
+
+# Regrouper les données au niveau taxonomique souhaité (par exemple, "Genus")
+ps_genus <- tax_glom(ps_relative, taxrank = "Genus")
+
+# Extraire la table OTU (ou taxon) pour la heatmap
+otu_table_genus <- otu_table(ps_genus)
+tax_table_genus <- tax_table(ps_genus)
+
+# Convertir la table en un data.frame pour manipulation
+otu_matrix <- as.matrix(otu_table_genus)
+rownames(otu_matrix) <- tax_table_genus[, "Genus"]
+
+# Filtrer les taxons les moins abondants
+row_means <- rowMeans(otu_matrix)
+otu_matrix_filtered <- otu_matrix[row_means > 0.1, ]  # Par exemple, garder les taxons > 0.1% d'abondance moyenne
+
+# Log-transformation pour mieux visualiser les faibles abondances
+otu_matrix_log <- log10(otu_matrix_filtered + 1)
+
+# Créer la heatmap
+pheatmap(
+  otu_matrix_log,
+  cluster_rows = TRUE,                # Clusteriser les lignes (taxons)
+  cluster_cols = TRUE,                # Clusteriser les colonnes (échantillons)
+  color = viridis(50),                # Palette de couleurs
+  scale = "none",                     # Pas de normalisation supplémentaire
+  show_rownames = TRUE,               # Afficher les noms des taxons
+  show_colnames = TRUE,               # Afficher les noms des échantillons
+  fontsize_row = 8,                   # Taille de la police pour les taxons
+  fontsize_col = 8,                   # Taille de la police pour les échantillons
+  main = "Heatmap of Relative Abundance"
+)
+```
+```{r}
+# Regrouper au niveau taxonomique
+ps_genus <- tax_glom(ps_relative, taxrank = "Genus")
+
+# Extraire et aligner les tables OTU et taxonomie
+otu_table_genus <- otu_table(ps_genus)
+tax_table_genus <- tax_table(ps_genus)
+
+# Vérification et ajustement des noms de taxons
+rownames(otu_table_genus) <- make.unique(tax_table_genus[, "Genus"])
+
+# Filtrer les taxons moins abondants
+otu_matrix <- as.matrix(otu_table_genus)
+otu_matrix_filtered <- otu_matrix[rowMeans(otu_matrix) > 0.1, ]  # Garder les taxons avec > 0.1% d'abondance moyenne
+
+# Transformation logarithmique
+otu_matrix_log <- log10(otu_matrix_filtered + 1)
+
+# Créer la heatmap
+pheatmap(
+  otu_matrix_log,
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  color = viridis(50),
+  scale = "none",
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  fontsize_row = 8,
+  fontsize_col = 8,
+  main = "Heatmap of Relative Abundance"
+)
+
+```
+```{r}
+dim(otu_matrix)                  # Dimensions de la matrice OTU
+length(rownames(otu_matrix))     # Nombre de noms de rangées assignés
+
+```
+
+```{r}
+
+
+# Dimensions de la matrice OTU et de la table taxonomique
+dim(otu_table_genus)   # Dimensions de la matrice OTU
+dim(tax_table_genus)   # Dimensions de la table taxonomique
+
+# Comparer les noms de rangées
+head(rownames(otu_table_genus))
+head(rownames(tax_table_genus))
+
+# Vérifier si les noms correspondent
+all(rownames(otu_table_genus) %in% rownames(tax_table_genus))
+
+
+```
+```{r}
+# Regrouper les données par taxons
+ps_genus <- tax_glom(ps_relative, taxrank = "Genus")
+
+# Extraire les tables OTU et taxonomie
+otu_table_genus <- as.matrix(otu_table(ps_genus))
+tax_table_genus <- tax_table(ps_genus)
+
+# Aligner les noms de rangées
+if (!all(rownames(otu_table_genus) == rownames(tax_table_genus))) {
+  tax_table_genus <- tax_table_genus[rownames(otu_table_genus), , drop = FALSE]
+}
+
+# Générer des noms uniques si nécessaire
+rownames(otu_table_genus) <- make.unique(rownames(otu_table_genus))
+rownames(tax_table_genus) <- make.unique(tax_table_genus[, "Genus"])
+
+# Filtrer les taxons avec une faible abondance
+otu_matrix_filtered <- otu_table_genus[rowMeans(otu_table_genus) > 0.1, ]
+
+# Transformation logarithmique
+otu_matrix_log <- log10(otu_matrix_filtered + 1)
+
+# Créer la heatmap
+pheatmap(
+  otu_matrix_log,
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  color = viridis(50),
+  scale = "none",
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  fontsize_row = 8,
+  fontsize_col = 8,
+  main = "Heatmap of Relative Abundance"
+)
+
+```
+
