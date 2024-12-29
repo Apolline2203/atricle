@@ -123,36 +123,20 @@ theme_set(theme_bw())
 
 
 
-
-#attention faux
-```{r}
-samples.out <- rownames(seqtab.nochim)
-subject <- sapply(strsplit(samples.out, "D"), `[`, 1)
-gender <- substr(subject,1,1)
-subject <- substr(subject,2,999)
-day <- as.integer(sapply(strsplit(samples.out, "D"), `[`, 2))
-samdf <- data.frame(Subject=subject, Gender=gender, Day=day)
-samdf$When <- "Sediment"
-samdf$When[samdf$Day>100] <- "Biofilm"
-rownames(samdf) <- samples.out
-```
-#A modifier en fonction ma table de métadonées !!!!!!!!
-
-
-
-
-
+#préparation des données pour faire les graphiques de l'abondance des phylums
 
 
 ```{r}
-samples.out <- metadata$Library.Name  # Utilisation de 'Library Name' comme identifiant d'échantillon
+samples.out <- metadata$Run  # Utilisation de 'Run' comme identifiant d'échantillon
 type_echantillon <- metadata$type_echantillon
 localisation <- metadata$localisation
+Run<- metadata$Run
 ```
 
 ```{r}
 # Construire la table des métadonnées
 samdf <- data.frame(
+  Run = Run,
   Sample = samples.out,
   Type = type_echantillon,
   Location = localisation
@@ -168,12 +152,91 @@ rownames(samdf) <- samples.out
 head(samdf)
 ```
 
+#graphique de l'abondance des différents phylums dans chaque échantillons
+```{r}
+
+
+# Vérification des dimensions
+if (!all(rownames(samdf) %in% rownames(seqtab.nochim))) {
+  stop("Les noms des échantillons dans 'samdf' ne correspondent pas à ceux de 'seqtab.nochim'.")
+}
+
+#  Création de l'objet phyloseq
+ps <- phyloseq(
+  otu_table(seqtab.nochim, taxa_are_rows = FALSE),
+  sample_data(samdf),
+  tax_table(taxa)
+)
+
+#  Résumé et visualisation
+print(ps)
+plot_richness(ps, measures = c("Shannon", "Simpson"))
+# Barplot avec remplissage par Phylum
+plot_bar(ps, fill = "Phylum") +
+  ggtitle("Composition taxonomique par Phylum")
+
+
+```
+#le même graphique mais d'une manière différente
+```{r}
+# Extraire les données de phyloseq
+data <- psmelt(ps)
+
+
+
+# Assurez-vous que data contient bien les colonnes nécessaires
+head(data)  # Vérifiez qu'il y a "Sample", "Abundance", et "Family"
+
+# Créez le graphique
+ggplot(data, aes(x = Sample, y = Abundance, fill = Phylum)) +
+  geom_bar(stat = "identity", position = "stack") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ggtitle("Composition taxonomique par Famille")
+
+
+
+
+```
+
+#graphique de l'abondance des phylums en foction du type d'échantillon : 
+```{r}
+# Extraire les données de phyloseq
+data <- psmelt(ps)
+
+# Vérifiez que les colonnes nécessaires sont présentes
+head(data)  # Assurez-vous que "Type", "Abundance", et "Phylum" sont disponibles
+
+# Créez le graphique avec Type et Phylum
+ggplot(data, aes(x = Type, y = Abundance, fill = Phylum)) +
+  geom_bar(stat = "identity", position = "stack") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Composition taxonomique par Phylum selon le Type d'échantillon") +
+  labs(x = "Type d'échantillon", y = "Abondance", fill = "Phylum")
+
+```
+# 1 seul graphique de l'abondance des phylum en fonction du type d'échantillon et de la localisation
+```{r}
+# Extraire les données de phyloseq
+data <- psmelt(ps)
+
+# Vérifiez que les colonnes nécessaires sont disponibles
+head(data)  # Vérifiez qu'il y a "Type", "Location", "Abundance", et "Phylum"
+
+# Créez le graphique avec Phylum, Type et Location
+ggplot(data, aes(x = Type, y = Abundance, fill = Phylum)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_wrap(~ Location, scales = "free_x") +  # Crée des facettes pour chaque localisation
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Composition taxonomique par Phylum, Type et Localisation") +
+  labs(x = "Type d'échantillon", y = "Abondance", fill = "Phylum")
+
+```
 
 
 
 
 
-
+#création du l'objet Phyloseq : 
 ```{r}
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
                sample_data(samdf), 
@@ -190,9 +253,9 @@ ps
 
 #Visualize alpha-diversity:
 ```{r}
-plot_richness(ps, x="isolation_source", measures=c("Shannon", "Simpson"), color="When")
+plot_richness(ps, x="Type", measures=c("Shannon", "Simpson", "Chao1"), color="Location")
 ```
-# Première figure : barraplot des phylums : 
+# Première figure : barreplot des phylums : 
 #charger les librairies
 ```{r}
 library(phyloseq)
@@ -243,152 +306,122 @@ ggplot(df, aes(x = Sample, y = Abundance, fill = Phylum)) +
 ```
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-#figure heat maps :
+#RDA Analysis
 ```{r}
 # Charger les bibliothèques nécessaires
-library(phyloseq)
-library(pheatmap)
-library(viridis)
+library(vegan)
+library(ggplot2)
 
-# Convertir les données en abondances relatives
-ps_relative <- transform_sample_counts(ps, function(x) x / sum(x) * 100)
+# Exemple de données d'abondance OTU (remplacez par vos données)
+otu_data <- matrix(c(20, 15, 30, 10,
+                     25, 20, 35, 5,
+                     10, 25, 20, 15,
+                     30, 10, 15, 25),
+                   nrow = 4, byrow = TRUE)
+rownames(otu_data) <- c("RP-S1", "RP-S2", "RP-S3", "RP-S4")
+colnames(otu_data) <- c("OTU1", "OTU2", "OTU3", "OTU4")
 
-# Regrouper les données au niveau taxonomique souhaité (par exemple, "Genus")
-ps_genus <- tax_glom(ps_relative, taxrank = "Genus")
-
-# Extraire la table OTU (ou taxon) pour la heatmap
-otu_table_genus <- otu_table(ps_genus)
-tax_table_genus <- tax_table(ps_genus)
-
-# Convertir la table en un data.frame pour manipulation
-otu_matrix <- as.matrix(otu_table_genus)
-rownames(otu_matrix) <- tax_table_genus[, "Genus"]
-
-# Filtrer les taxons les moins abondants
-row_means <- rowMeans(otu_matrix)
-otu_matrix_filtered <- otu_matrix[row_means > 0.1, ]  # Par exemple, garder les taxons > 0.1% d'abondance moyenne
-
-# Log-transformation pour mieux visualiser les faibles abondances
-otu_matrix_log <- log10(otu_matrix_filtered + 1)
-
-# Créer la heatmap
-pheatmap(
-  otu_matrix_log,
-  cluster_rows = TRUE,                # Clusteriser les lignes (taxons)
-  cluster_cols = TRUE,                # Clusteriser les colonnes (échantillons)
-  color = viridis(50),                # Palette de couleurs
-  scale = "none",                     # Pas de normalisation supplémentaire
-  show_rownames = TRUE,               # Afficher les noms des taxons
-  show_colnames = TRUE,               # Afficher les noms des échantillons
-  fontsize_row = 8,                   # Taille de la police pour les taxons
-  fontsize_col = 8,                   # Taille de la police pour les échantillons
-  main = "Heatmap of Relative Abundance"
+# Tableau des variables environnementales 
+env_data <- data.frame(
+  Moisture_pourcentage = c(12.60, 8.26, 2.33, 11.11, 17.89, 6.49),
+  pH = c(4.59, 4.63, 6.06, 6.53, 6.15, 6.04),
+  NO3_mg.kg.drysample = c(0.604, 0.522, 0.261, 0.397, 0.447, 0.396),
+  NH4_mg.kg.drysample = c(1.582, 1.350, 0.239, 0.461, 0.426, 0.201),
+  NO2_µg.kg.drysample = c(71.493, 33.229, 4.334, 4.497, 3.345, 2.968)
 )
-```
-```{r}
-# Regrouper au niveau taxonomique
-ps_genus <- tax_glom(ps_relative, taxrank = "Genus")
+rownames(env_data) <- c("BM-S1", "BM-S2", "RP-S1", "RP-S2", "RP-S3", "RP-S4")
 
-# Extraire et aligner les tables OTU et taxonomie
-otu_table_genus <- otu_table(ps_genus)
-tax_table_genus <- tax_table(ps_genus)
+# Exécuter l'analyse RDA
+rda_result <- rda(otu_data ~ ., data = env_data)
 
-# Vérification et ajustement des noms de taxons
-rownames(otu_table_genus) <- make.unique(tax_table_genus[, "Genus"])
+# Résumé des résultats
+summary(rda_result)
 
-# Filtrer les taxons moins abondants
-otu_matrix <- as.matrix(otu_table_genus)
-otu_matrix_filtered <- otu_matrix[rowMeans(otu_matrix) > 0.1, ]  # Garder les taxons avec > 0.1% d'abondance moyenne
+# Tracer l'analyse RDA
+plot(rda_result, scaling = 2, main = "RDA - Abundance vs Environment")
+arrows(0, 0, rda_result$biplot[,1], rda_result$biplot[,2], col = "blue", length = 0.1)
+text(rda_result$biplot[,1], rda_result$biplot[,2], labels = rownames(rda_result$biplot), col = "blue", cex = 0.8)
 
-# Transformation logarithmique
-otu_matrix_log <- log10(otu_matrix_filtered + 1)
+#  visualisation améliorée avec ggplot2
+library(ggvegan)
 
-# Créer la heatmap
-pheatmap(
-  otu_matrix_log,
-  cluster_rows = TRUE,
-  cluster_cols = TRUE,
-  color = viridis(50),
-  scale = "none",
-  show_rownames = TRUE,
-  show_colnames = TRUE,
-  fontsize_row = 8,
-  fontsize_col = 8,
-  main = "Heatmap of Relative Abundance"
-)
-
-```
-```{r}
-dim(otu_matrix)                  # Dimensions de la matrice OTU
-length(rownames(otu_matrix))     # Nombre de noms de rangées assignés
+autoplot(rda_result, scaling = 2) +
+  geom_point(size = 3) +
+  geom_text(aes(label = rownames(env_data)), vjust = -1, hjust = 0.5) +
+  theme_minimal() +
+  labs(title = "RDA Analysis", x = "RDA1", y = "RDA2")
 
 ```
 
+
+
+
+
+
+
+#analyse en composante pricipale : 
 ```{r}
+# Charger les bibliothèques nécessaires
+library(vegan)
+library(ggplot2)
+library(factoextra)
 
+# Exemple de données (remplacez par vos propres données)
+# Composition bactérienne (%) dans différents échantillons
+bacteria_data <- matrix(c(
+  0.10, 0.15, 0.05, 0.20, 0.50,  # BM-F1
+  0.08, 0.12, 0.04, 0.25, 0.51,  # BM-F2
+  0.30, 0.25, 0.15, 0.10, 0.20,  # RP-S1
+  0.28, 0.22, 0.18, 0.12, 0.20,  # RP-S2
+  0.35, 0.30, 0.05, 0.10, 0.20,  # RP-F1
+  0.36, 0.32, 0.06, 0.08, 0.18   # RP-F2
+), nrow = 6, byrow = TRUE)
 
-# Dimensions de la matrice OTU et de la table taxonomique
-dim(otu_table_genus)   # Dimensions de la matrice OTU
-dim(tax_table_genus)   # Dimensions de la table taxonomique
+rownames(bacteria_data) <- c("BM-F1", "BM-F2", "RP-S1", "RP-S2", "RP-F1", "RP-F2")
+colnames(bacteria_data) <- c("Genus1", "Genus2", "Genus3", "Genus4", "Genus5")
 
-# Comparer les noms de rangées
-head(rownames(otu_table_genus))
-head(rownames(tax_table_genus))
+# Effectuer l'analyse en composantes principales (ACP)
+pca_result <- rda(bacteria_data)
 
-# Vérifier si les noms correspondent
-all(rownames(otu_table_genus) %in% rownames(tax_table_genus))
+# Résumé des résultats
+summary(pca_result)
 
-
-```
-```{r}
-# Regrouper les données par taxons
-ps_genus <- tax_glom(ps_relative, taxrank = "Genus")
-
-# Extraire les tables OTU et taxonomie
-otu_table_genus <- as.matrix(otu_table(ps_genus))
-tax_table_genus <- tax_table(ps_genus)
-
-# Aligner les noms de rangées
-if (!all(rownames(otu_table_genus) == rownames(tax_table_genus))) {
-  tax_table_genus <- tax_table_genus[rownames(otu_table_genus), , drop = FALSE]
-}
-
-# Générer des noms uniques si nécessaire
-rownames(otu_table_genus) <- make.unique(rownames(otu_table_genus))
-rownames(tax_table_genus) <- make.unique(tax_table_genus[, "Genus"])
-
-# Filtrer les taxons avec une faible abondance
-otu_matrix_filtered <- otu_table_genus[rowMeans(otu_table_genus) > 0.1, ]
-
-# Transformation logarithmique
-otu_matrix_log <- log10(otu_matrix_filtered + 1)
-
-# Créer la heatmap
-pheatmap(
-  otu_matrix_log,
-  cluster_rows = TRUE,
-  cluster_cols = TRUE,
-  color = viridis(50),
-  scale = "none",
-  show_rownames = TRUE,
-  show_colnames = TRUE,
-  fontsize_row = 8,
-  fontsize_col = 8,
-  main = "Heatmap of Relative Abundance"
+# Tracer les résultats de l'ACP avec ggplot2
+pca_scores <- scores(pca_result, display = "sites")
+pca_biplot <- data.frame(
+  PC1 = pca_scores[, 1],
+  PC2 = pca_scores[, 2],
+  Sample = rownames(pca_scores)
 )
 
+ggplot(pca_biplot, aes(x = PC1, y = PC2, label = Sample)) +
+  geom_point(aes(color = Sample), size = 3) +
+  geom_text(vjust = -0.5, size = 3) +
+  theme_minimal() +
+  labs(title = "ACP des échantillons",
+       x = paste0("PC1 (", round(summary(pca_result)$cont$importance[2, 1] * 100, 2), "%)"),
+       y = paste0("PC2 (", round(summary(pca_result)$cont$importance[2, 2] * 100, 2), "%)")) +
+  theme(legend.position = "none")
+
+# Option pour ajouter des ellipses pour les groupes si applicables
+# Exemple de regroupement des échantillons
+groups <- c("Beng Mealea Biofilm", "Beng Mealea Biofilm", 
+            "Royal Palace Sediment", "Royal Palace Sediment", 
+            "Royal Palace Biofilm", "Royal Palace Biofilm")
+
+fviz_pca_ind(pca_result, geom = "point", label = "var", habillage = groups, addEllipses = TRUE, ellipse.level = 0.95) +
+  theme_minimal()
+
 ```
+
+
+
+
+
+
+
+
+
+
+
 
