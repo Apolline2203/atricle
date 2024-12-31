@@ -12,17 +12,20 @@ Cet article à pour but d'identifier la population microbienne à la surface des
 En tout 13 prélèvements ont été réalisés. Beng Mealea étant beaucoup plus petit que Royal Palace, 2 sédiment et 2 biofilms ont été prélevés. A Royal Palace 4 sédiments et 5 biofilms ont été prélevés.
 Ici les données du séquecage Illumina ont été réanalysées avec le Pipeline Dada2, alors que dans l'article les auteurs ont utilisés des OUT à 3%.
 
+Royal Palace est parfois abrévié : RP
+Beng Mealea est parfois abrévié : BM
+Les sédiments sont parfois abréviés : S
+Les biofilms sont parfois abréviés : F
+
 
 Préparations pour l'analyse via Dada2 :
 Les séquences sont déjà mergées.
 ```{r}
 library(gitcreds)
-gitcreds_set()
+
 ```
 
-
-
-#on lit le fichier de métadonées et le stocke dans
+On lit le fichier de métadonées et les stocke 
 ```{r}
 metadata<-read.csv(file="metadonee3.csv", sep = ";")
 ```
@@ -409,172 +412,8 @@ print(abundance_df)
 ```
 
 
-Analyse en composante pricipale : 
-```{r}
-# Charger les bibliothèques nécessaires
-library(vegan)
-library(ggplot2)
-library(factoextra)
 
 
-# Composition bactérienne (%) dans différents échantillons
-bacteria_data <- abundance_matrix
-  
-rownames(bacteria_data) <- c("RP-S2", "RP-S1", "RP-F5", "RP-S3", "BM-S2", "BM-S1", "RP-F4", "RP-F3", "BM-F2", "RP-F2", "RP-F1", "BM-F1", "RP-S4")
-
-
-# Effectuer l'analyse en composantes principales (ACP)
-pca_result <- rda(bacteria_data)
-
-# Résumé des résultats
-summary(pca_result)
-
-# Tracer les résultats de l'ACP avec ggplot2
-pca_scores <- scores(pca_result, display = "sites")
-pca_biplot <- data.frame(
-  PC1 = pca_scores[, 1],
-  PC2 = pca_scores[, 2],
-  Sample = rownames(pca_scores)
-)
-
-ggplot(pca_biplot, aes(x = PC1, y = PC2, label = Sample)) +
-  geom_point(aes(color = Sample), size = 3) +
-  geom_text(vjust = -0.5, size = 3) +
-  theme_minimal() +
-  labs(title = "ACP des échantillons",
-       x = paste0("PC1 (", round(summary(pca_result)$cont$importance[2, 1] * 100, 2), "%)"),
-       y = paste0("PC2 (", round(summary(pca_result)$cont$importance[2, 2] * 100, 2), "%)")) +
-  theme(legend.position = "none")
-
-# Option pour ajouter des ellipses pour les groupes si applicables
-# Exemple de regroupement des échantillons
-groups <- c("Beng Mealea Biofilm", "Beng Mealea Biofilm", 
-            "Royal Palace Sediment", "Royal Palace Sediment", 
-            "Royal Palace Biofilm", "Royal Palace Biofilm")
-
-fviz_pca_ind(pca_result, geom = "point", label = "var", habillage = groups, addEllipses = TRUE, ellipse.level = 0.95) +
-  theme_minimal()
-
-```
-
-
-RDA Analysis : 
-
-```{r}
-# Charger la bibliothèque phyloseq
-library(phyloseq)
-
-# Vérifier la structure de l'objet phyloseq
-ps
-
-# Agglomération au niveau du phylum
-ps_phylum <- tax_glom(ps, taxrank = "Phylum")
-
-# Transformer en données proportionnelles (si nécessaire)
-ps_phylum <- transform_sample_counts(ps_phylum, function(x) x / sum(x))
-
-# Extraire la table d'abondance
-phylum_abundance <- as.data.frame(otu_table(ps_phylum))
-
-# Ajuster les noms des colonnes si nécessaire
-colnames(phylum_abundance) <- tax_table(ps_phylum)[, "Phylum"]
-
-# Extraire les données environnementales depuis sample_data
-env_data <- data.frame(
-  Library_names = c( "BM-S1", "BM-S2", "RP-S1", "RP-S2", "BM-S3", "BM-S4"),
-  Moisture_pourcentage = c(12.60, 8.26, 2.33, 11.11, 17.89, 6.49),
-  pH = c(4.59, 4.63, 6.06, 6.53, 6.15, 6.04),
-  NO3_mg.kg.drysample = c(0.604, 0.522, 0.261, 0.397, 0.447, 0.396),
-  NH4_mg.kg.drysample = c(1.582, 1.350, 0.239, 0.461, 0.426, 0.201),
-  NO2_µg.kg.drysample = c(71.493, 33.229, 4.334, 4.497, 3.345, 2.968)
-)
-rownames(env_data) <- c("SRR7132192", "SRR7132191", "SRR7132188", "SRR7132187", "SRR7132190", "SRR7132199")
-
-
-# Charger la bibliothèque vegan
-library(vegan)
-
-# Réaliser l'analyse RDA
-rda_result <- rda(phylum_abundance ~ ., data = env_data)
-
-# Résumé des résultats
-summary(rda_result)
-
-# Tracer un graphique de base
-plot(rda_result, scaling = 2)
-
-
-```
-Ici nous avons un problèmes. Ces données environnementales (pH, concentration en nitrates etc) n'ont été prises que sur les sédiments. Or dans l'objet ps phylum et dans la table d'abondance nous avons les sédiments et les biofilms.
-
-
-
-
-
-
-
-
-
-
-Essai heat map :
-```{r}
-# Charger les bibliothèques nécessaires
-library(phyloseq)
-library(ggplot2)
-library(pheatmap)
-
-# Vérifiez votre objet phyloseq
-ps
-
-# Agglomération au niveau souhaité (par exemple, Phylum)
-ps_phylum <- tax_glom(ps, taxrank = "Phylum")
-
-# Transformer en abondances relatives
-ps_phylum <- transform_sample_counts(ps_phylum, function(x) x / sum(x))
-
-# Extraire la table d'abondance
-phylum_abundance <- as.data.frame(otu_table(ps_phylum))
-
-# Ajouter les noms des taxons (par exemple, phylum)
-rownames(phylum_abundance) <- tax_table(ps_phylum)[, "Phylum"]
-
-# Transformation log10 pour éviter les valeurs extrêmes (ajouter un offset pour éviter les log(0))
-phylum_abundance_log <- log10(phylum_abundance + 1e-5)
-
-# Créer une heatmap avec clustering
-pheatmap(
-  mat = phylum_abundance_log,       # Données d'abondance log-transformées
-  scale = "row",                    # Normaliser chaque taxon (ligne)
-  clustering_distance_rows = "euclidean", # Distance pour les taxons
-  clustering_distance_cols = "euclidean", # Distance pour les échantillons
-  clustering_method = "ward.D2",    # Méthode de clustering
-  color = colorRampPalette(c("green", "black", "red"))(50), # Palette de couleurs
-  fontsize = 10,                    # Taille de la police
-  main = "Heatmap des phylums"
-)
-
-# Extraire les données des échantillons
-sample_data_df <- as.data.frame(sample_data(ps))
-
-# Créer des annotations pour les échantillons
-annotation_col <- data.frame(Group = sample_data_df$Type)  # Remplacez "Type" par votre variable
-rownames(annotation_col) <- rownames(sample_data_df)
-
-# Ajouter les annotations à la heatmap
-pheatmap(
-  mat = phylum_abundance_log,
-  scale = "row",
-  clustering_distance_rows = "euclidean",
-  clustering_distance_cols = "euclidean",
-  clustering_method = "ward.D2",
-  color = colorRampPalette(c("green", "black", "red"))(50),
-  fontsize = 10,
-  main = "Heatmap des phylums",
-  annotation_col = annotation_col # Ajouter les annotations
-)
-
-
-```
 
 
 
