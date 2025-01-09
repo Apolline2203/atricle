@@ -528,6 +528,6 @@ Il y a une différence dans le traitement des données de l'aticle et notre anal
 
 En revanches nos avons quelques différences avec les conclusions de l'article concernat les phylums dominants.
 Nous que les phylums prédominants sont les Actinobacteriota, Firmicutes et Acidobacteriota. 
-Dans l'article les phylums dominants présentés sont Proteobacteria, Actinobacteriota, Acidobacteriota et Chloroflexi. Les Firmicutes et les Gemmatimonadetes étaient les phylums dominants détectés uniquement dans les sédiments, tandis que les Cyanobacteria, Chloroflexi et les bactéries "non attribuées" étaient plus abondantes dans les biofilms.
+Dans l'article les phylums dominants présentés sont Proteobacteria, Actinobacteriota, Acidobacteriota et Chloroflexi. Les Firmicutes et les Gemmatimonadetes étaient les phylums dominants détectés uniquement dans les sédiments, tandis que les Cyanobacteria, Chloroflexi et les bactéries "non attribuées" étaient plus abondantes dans les biofilms..
 
 Aussi concernant les indices de diversité nous ne trouvons pas du tout les mêmes valeurs concernan les indice de Chao1 et de Shannon.
