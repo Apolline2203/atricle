@@ -472,7 +472,7 @@ plot_heatmap(carbom, method = "NMDS", distance = "bray")
 ```
 Cette heat map m'est pas très lisible donc nous allons filtrer les données.
 
-On ne garde que les OTU les plus importants donc supérieurs à 5 % pour faire la heatmap
+On ne garde que les OTU les plus importants donc supérieurs à 5 % pour faire la heatmap.
 ```{r}
 carbom_abund <- filter_taxa(carbom, function(x) sum(x > total*0.05) > 0, TRUE)
   carbom_abund
