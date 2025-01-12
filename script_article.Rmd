@@ -1,71 +1,71 @@
 ---
-title: "R Notebook"
-output: github_document
+title: "Analyse métabarcodes Dana/Apolline"
+output:
+  pdf_document: default
+  html_document: default
 ---
-Analyse de l'article : "Microbiological community of the Royal Palace in Angkor Thom and Beng Mealea of Cambodia by Illumina sequencing based on 16S rRNA gene"
+#Analyse de l'article : "Microbiological community of the Royal Palace in Angkor Thom and Beng Mealea of Cambodia by Illumina sequencing based on 16S rRNA gene"
 
-Apolline Le Bigot et Dana Matar - Master 1 MFA - 2024/2025
+#Apolline Le Bigot et Dana Matar - Master 1 MFA - 2024/2025
 
-Introduction : 
-Cet article à pour but d'identifier la population microbienne à la surface des grès et à l’intérieur du grès de 2 sites archéologiques (Palais Royal d'Angkor et Beng Mealea) au Kambodge. Les auteurs velent voir quelles sont les différences entre les populations microbiennes des biofilms à la surface des grès et dans les sédiments de grès effondrés, et aussi s'il y a des différences entre les 2 sites. Cette étude s'inscrit dans uns thématique beaucoup plus large de conservation des sites archéologiques. 
-En tout 13 prélèvements ont été réalisés. Beng Mealea étant beaucoup plus petit que Royal Palace, 2 sédiment et 2 biofilms ont été prélevés. A Royal Palace 4 sédiments et 5 biofilms ont été prélevés.
-Ici les données du séquecage Illumina ont été réanalysées avec le Pipeline Dada2, alors que dans l'article les auteurs ont utilisés des OUT à 3%.
+#Introduction : 
+#Cet article à pour but d'identifier la population microbienne à la surface des grès et à l’intérieur du grès de 2 sites archéologiques (Palais Royal d'Angkor et Beng Mealea) au Kambodge. Les auteurs velent voir quelles sont les différences entre les populations microbiennes des biofilms à la surface des grès et dans les sédiments de grès effondrés, et aussi s'il y a des différences entre les 2 sites. Cette étude s'inscrit dans uns thématique beaucoup plus large de conservation des sites archéologiques. En tout 13 prélèvements ont été réalisés. Beng Mealea étant beaucoup plus petit que Royal Palace, 2 sédiment et 2 biofilms ont été prélevés. A Royal Palace 4 sédiments et 5 biofilms ont été prélevés.Ici les données du séquecage Illumina ont été réanalysées avec le Pipeline Dada2, alors que dans l'article les auteurs ont utilisés des OUT à 3%.
 
-Royal Palace est parfois abrévié : RP
-Beng Mealea est parfois abrévié : BM
-Les sédiments sont parfois abréviés : S
-Les biofilms sont parfois abréviés : F
+#Royal Palace est parfois abrévié : RP
+#Beng Mealea est parfois abrévié : BM
+#Les sédiments sont parfois abréviés : S
+#Les biofilms sont parfois abréviés : F
 
 
-Préparations pour l'analyse via Dada2 :
-Les séquences sont déjà mergées.
+#Préparations pour l'analyse via Dada2 :
+#Les séquences sont déjà mergées.
 
-On appelle les librairies qui seront utilisés par la suite pour la réalisation de l’analyse
+#On appelle les librairies qui seront utilisés par la suite pour la réalisation de l’analyse
 ```{r}
 library(gitcreds)
 
 ```
 
-On lit le fichier de métadonées et le stocke dans metadata, c’est un document excel donc « .csv » et les séparateurs sont « ; »
+#On lit le fichier de métadonées et le stocke dans metadata, c’est un document excel donc « .csv » et les séparateurs sont « ; »
 ```{r}
 metadata<-read.csv(file="metadonee3.csv", sep = ";")
 ```
 
-On appelle la librairie dada2 
+#On appelle la librairie dada2 
 ```{r}
 library(dada2); packageVersion("dada2")
 
 ```
-On défini le path comme le chemin de notre répertoire de travail là où seront stockés les infos et là où on va travailler. On liste les fichiers dans path.
+#On défini le path comme le chemin de notre répertoire de travail là où seront stockés les infos et là où on va travailler. On liste les fichiers dans path.
 ```{r}
 path <- "/home/rstudio/atricle/sequences"
 list.files(path)
 ```
-Dans fn on met tous les fichiers dont le nom contient ".fastq.gz" triés par ordre croissants. Ici ils correspondent au reads forward et reverse car ils sont déjà fusionnés. Ensuite,  dans sample.names on met ‘fn’ dans lequel on extrait les noms des fichiers sans leur chemin ni l'extension ".fastq.gz"
+#Dans fn on met tous les fichiers dont le nom contient ".fastq.gz" triés par ordre croissants. Ici ils correspondent au reads forward et reverse car ils sont déjà fusionnés. Ensuite,  dans sample.names on met ‘fn’ dans lequel on extrait les noms des fichiers sans leur chemin ni l'extension ".fastq.gz"
 ```{r}
 fn <- sort(list.files(path, pattern=".fastq.gz", full.names = TRUE))
 sample.names <- sapply(strsplit(basename(fn), ".fastq.gz"), `[`, 1)
 ```
 
-Inspect read quality profiles : 
-On fait un graphique de la qualité du séquencage pour chaque nucléotide, à chacune des positions pour les reads.
+#Inspect read quality profiles : 
+#On fait un graphique de la qualité du séquencage pour chaque nucléotide, à chacune des positions pour les reads.
 ```{r}
 plotQualityProfile(fn[1:2])
 ```
 
 
-Filter and trim :
-Dans ‘filtFn’ on met un chemin pour aller chercher dans le fichier filtered des objets contenant les noms d’échantillons et "_filt.fastq.gz". On attribue les noms d’échantillons aux éléments contenus dans filtFn. (à noter que les séquences sont déjà mergées)
+#Filter and trim :
+#Dans ‘filtFn’ on met un chemin pour aller chercher dans le fichier filtered des objets contenant les noms d’échantillons et "_filt.fastq.gz". On attribue les noms d’échantillons aux éléments contenus dans filtFn. (à noter que les séquences sont déjà mergées)
 ```{r}
 filtFn <- file.path(path, "filtered", paste0(sample.names, "_filt.fastq.gz"))
 ```
 
-On associe les noms des échantillons aux chemins des fichiers filtrés dans 'filtFn' pour faciliter leur identification
+#On associe les noms des échantillons aux chemins des fichiers filtrés dans 'filtFn' pour faciliter leur identification
 ```{r}
 names(filtFn) <- sample.names
 ```
 
-Dans l’objet ‘out’ on met toutes les séquences qui ont été filtrées et tronquées par ‘filterAndTrim’ ; les séquences qui sont supprimées contiennent : au moins un nucléotide indéterminé (N), plus de 2 erreurs de séquençage, moins de 2 nucléotides,. Les autres séquences sont coupées à 450 nucléotides car le reste est jugé de mauvaise qualité.
+#Dans l’objet ‘out’ on met toutes les séquences qui ont été filtrées et tronquées par ‘filterAndTrim’ ; les séquences qui sont supprimées contiennent : au moins un nucléotide indéterminé (N), plus de 2 erreurs de séquençage, moins de 2 nucléotides,. Les autres séquences sont coupées à 450 nucléotides car le reste est jugé de mauvaise qualité.
 ```{r}
 out <- filterAndTrim(fn, filtFn, truncLen=c(450),
               maxN=0, maxEE=c(2), truncQ=2, rm.phix=TRUE,
@@ -73,66 +73,66 @@ out <- filterAndTrim(fn, filtFn, truncLen=c(450),
 head(out)
 ```
 
-Learn the Error Rates :
-Dans ‘errFn’ on place l’objet filtFn dans lequel on estime le taux d’erreurs de séquençages grâce au modèle d’erreurs.
+#Learn the Error Rates :
+#Dans ‘errFn’ on place l’objet filtFn dans lequel on estime le taux d’erreurs de séquençages grâce au modèle d’erreurs.
 ```{r}
 errFn <- learnErrors(filtFn, multithread=TRUE)
 ```
-On réalise le graphique du taux d'erreurs estimées selon les scores de qualité, chaque base étant remplacée par chacune des autres bases de l’ADN
--Points noirs : taux d’erreur estimé par l’algorithme
--Ligne rouge : taux d’erreur attendu
+#On réalise le graphique du taux d'erreurs estimées selon les scores de qualité, chaque base étant remplacée par chacune des autres bases de l’ADN
+#-Points noirs : taux d’erreur estimé par l’algorithme
+#-Ligne rouge : taux d’erreur attendu
 
 ```{r}
 plotErrors(errFn, nominalQ=TRUE)
 ```
-DADA2 utilise les taux d'erreurs estimés (errFn) pour différencier erreurs de séquençage et variants biologiques réels. Les résultats sont stockés dans dadaFn.
+#DADA2 utilise les taux d'erreurs estimés (errFn) pour différencier erreurs de séquençage et variants biologiques réels. Les résultats sont stockés dans dadaFn.
 
-Sample Inference : 
-Dans l’objet dadaFn, on stocke le résultat de la fonction dada appliquée à filtFn (séquences filtrées). On utilise le modèle d’erreurs errFn pour séparer les erreurs de séquençage des variants biologiques et corriger ces erreurs.
+#Sample Inference : 
+#Dans l’objet dadaFn, on stocke le résultat de la fonction dada appliquée à filtFn (séquences filtrées). On utilise le modèle d’erreurs errFn pour séparer les erreurs de séquençage des variants biologiques et corriger ces erreurs.
 ```{r}
 dadaFn <- dada(filtFn, err=errFn, multithread=TRUE)
 ```
-Dans le premier échantillon, il y 27156 reads qui contiennent 25965 variants  distincts de séquences.
+#Dans le premier échantillon, il y 27156 reads qui contiennent 25965 variants  distincts de séquences.
 
-Inspecting the returned dada-class object: 
-On affiche les résultats du traitement DADA2 pour le premier échantillon, y compris le nombre de séquences corrigées et leur fréquence. 
+#Inspecting the returned dada-class object: 
+#On affiche les résultats du traitement DADA2 pour le premier échantillon, y compris le nombre de séquences corrigées et leur fréquence. 
 ```{r}
 dadaFn[[1]]
 ```
-Après le suppression des erreurs dues au séquençage et regroupement des séquences très proches, 163  ASV ont été identifiées comme étant des variants biologiques.
+#Après le suppression des erreurs dues au séquençage et regroupement des séquences très proches, 163  ASV ont été identifiées comme étant des variants biologiques.
 
-Les séquences sont déjà mergées donc j'ai passé l'étape "merge paired reads" qui fusionne les séquences forward et reverse filtrées, les faisnt se chevaucher et ainsi que  pour les séquences corrigées par DADA2.
+#Les séquences sont déjà mergées donc j'ai passé l'étape "merge paired reads" qui fusionne les séquences forward et reverse filtrées, les faisnt se chevaucher et ainsi que  pour les séquences corrigées par DADA2.
 
-Construct sequence table :
-Maintenant on crée un tableau des séquences d’ASV  ‘seqtab’, fait à partir des séquences corrigées (et déjà fusionnées)
+#Construct sequence table :
+#Maintenant on crée un tableau des séquences d’ASV  ‘seqtab’, fait à partir des séquences corrigées (et déjà fusionnées)
 ```{r}
 seqtab <- makeSequenceTable(dadaFn)
 dim(seqtab)
 ```
-Le nombre de lignes correspond au nombre d’échantillons : 13, et le nombre de colones correspond au nombre de séquences uniques autrement dit ASV : 13962
+#Le nombre de lignes correspond au nombre d’échantillons : 13, et le nombre de colones correspond au nombre de séquences uniques autrement dit ASV : 13962
 
 
-0n a créé un tableau avec le nombre de nucléotides des séquences dans la première ligne et le nombre de séquences dans la deuxième ligne. 
+#0n a créé un tableau avec le nombre de nucléotides des séquences dans la première ligne et le nombre de séquences dans la deuxième ligne. 
 ```{r}
 # Inspect distribution of sequence lengths
 table(nchar(getSequences(seqtab)))
 ```
-Dans ce tableau nous avons 962 ASV d'une longueur de 450 nucléotides.
+#Dans ce tableau nous avons 962 ASV d'une longueur de 450 nucléotides.
 
-Remove chimeras : 
-On enlève les séquences chimères.
+#Remove chimeras : 
+#On enlève les séquences chimères.
 ```{r}
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
 dim(seqtab.nochim)
 sum(seqtab.nochim)/sum(seqtab)
 ```
-94 % de mes données sont conservées et 6% sont des chimères qui ont été enlevées.
+#94 % de mes données sont conservées et 6% sont des chimères qui ont été enlevées.
 
-Track reads through the pipeline :
-On crée un tableau track qui répertorie le nombre de séquences à chaque étape de l’anlyse pour chaque échantillon 
-filtered : après filtration
-denoiseFn : après correction
-nochim : après supression des séquences chimères
+#Track reads through the pipeline :
+#On crée un tableau track qui répertorie le nombre de séquences à chaque étape de l’anlyse pour chaque échantillon 
+#filtered : après filtration
+#denoiseFn : après correction
+#nochim : après supression des séquences chimères
 ```{r}
 getN <- function(x) sum(getUniques(x))
 track <- cbind(out, sapply(dadaFn, getN), rowSums(seqtab.nochim))
@@ -141,11 +141,11 @@ colnames(track) <- c("input", "filtered", "denoiseFn", "nonchim")
 rownames(track) <- sample.names
 head(track)
 ```
-Assign taxonomy : 
+#Assign taxonomy : 
 ```{r}
 getwd()
 ```
-On crée un objet taxa dans lequel on stocke l’assignation taxonomique pour chaque séquence différente de ‘seqtab.nochim’
+#On crée un objet taxa dans lequel on stocke l’assignation taxonomique pour chaque séquence différente de ‘seqtab.nochim’
 ```{r}
 taxa <- assignTaxonomy(seqtab.nochim, "/home/rstudio/atricle/silva_nr99_v138.1_train_set.fa.gz?download=1", multithread=TRUE)
 ```
@@ -155,10 +155,10 @@ taxa.print <- taxa
 rownames(taxa.print) <- NULL
 head(taxa.print)
 ```
-Il n'y a pas de Mock sample dans notre jeu de données
+#Il n'y a pas de Mock sample dans notre jeu de données
 
-Handoff to phyloseq : 
-On appelle les librairies phyloseq, Biostrings et ggplot2
+#Handoff to phyloseq : 
+#On appelle les librairies phyloseq, Biostrings et ggplot2
 ```{r}
 library(phyloseq); packageVersion("phyloseq")
 ```
@@ -169,15 +169,15 @@ library(Biostrings); packageVersion("Biostrings")
 ```{r}
 library(ggplot2); packageVersion("ggplot2")
 ```
-La fonction suivante choisis un thème noir et blanc pour le graphique et fonctionne avec le package ggplot2
+#La fonction suivante choisis un thème noir et blanc pour le graphique et fonctionne avec le package ggplot2
 ```{r}
 theme_set(theme_bw())
 ```
 
 
 
-Préparation des données pour faire les graphiques de l'abondance des phylums : 
-On extrait les informations du nom des échantillons, du type et de la localisation. On les place dans un tableau de métadonnées. 'Run' sert d'identifiant unique pour chaque échantillon
+#Préparation des données pour faire les graphiques de l'abondance des phylums : 
+#On extrait les informations du nom des échantillons, du type et de la localisation. On les place dans un tableau de métadonnées. 'Run' sert d'identifiant unique pour chaque échantillon
 ```{r}
 samples.out <- metadata$Run  # Utilisation de 'Run' comme identifiant d'échantillon
 type_echantillon <- metadata$type_echantillon
@@ -185,7 +185,7 @@ localisation <- metadata$localisation
 Run<- metadata$Run
 ```
 
-On réalise la table des métadonnées en combinant les informations sur l'identifiant des échantillons ('Run'), le type d'échantillon, et la localisation dans un tableau 
+#On réalise la table des métadonnées en combinant les informations sur l'identifiant des échantillons ('Run'), le type d'échantillon, et la localisation dans un tableau 
 ```{r}
 # Construire la table des métadonnées
 samdf <- data.frame(
@@ -205,7 +205,7 @@ rownames(samdf) <- samples.out
 head(samdf)
 ```
 
-Graphique de l'abondance des différents phylums dans chaque échantillons : 
+#Graphique de l'abondance des différents phylums dans chaque échantillons : 
 ```{r}
 # Vérification des dimensions
 if (!all(rownames(samdf) %in% rownames(seqtab.nochim))) {
@@ -228,7 +228,7 @@ plot_bar(ps, fill = "Phylum") +
 
 
 ```
-Le même graphique mais d'une manière plus lisible : 
+#Le même graphique mais d'une manière plus lisible : 
 ```{r}
 # Extraire les données de phyloseq
 data <- psmelt(ps)
@@ -246,10 +246,10 @@ ggplot(data, aes(x = Sample, y = Abundance, fill = Phylum)) +
 
 
 ```
-Ici nous voyons que les phylums prédominants sont les Actinobacteriota, Firmicutes et Acidobacteriota. Dans l'article les phylums dominants présentés sont Proteobacteria, Actinobacteriota, Acidobacteriota et Chloroflexi. Les Firmicutes et les Gemmatimonadetes étaient les phylums dominants détectés uniquement dans les sédiments, tandis que les Cyanobacteria, Chloroflexi et les bactéries "non attribuées" étaient plus abondantes dans les biofilms.
+#Ici nous voyons que les phylums prédominants sont les Actinobacteriota, Firmicutes et Acidobacteriota. Dans l'article les phylums dominants présentés sont Proteobacteria, Actinobacteriota, Acidobacteriota et Chloroflexi. Les Firmicutes et les Gemmatimonadetes étaient les phylums dominants détectés uniquement dans les sédiments, tandis que les Cyanobacteria, Chloroflexi et les bactéries "non attribuées" étaient plus abondantes dans les biofilms.
 
 
-Graphique de l'abondance des phylums en fonction du type d'échantillon : 
+#Graphique de l'abondance des phylums en fonction du type d'échantillon : 
 ```{r}
 # Extraire les données de phyloseq
 data <- psmelt(ps)
@@ -265,9 +265,9 @@ ggplot(data, aes(x = Type, y = Abundance, fill = Phylum)) +
   labs(x = "Type d'échantillon", y = "Abondance", fill = "Phylum")
 
 ```
-La richesse spécifique est donc beaucoup plus importante dens les sédiments, ce qui concorde avec ce qui à été dit dans l'article.
+#La richesse spécifique est donc beaucoup plus importante dens les sédiments, ce qui concorde avec ce qui à été dit dans l'article.
 
- 1 seul graphique de l'abondance des phylum en fonction du type d'échantillon et de la localisation : 
+#1 seul graphique de l'abondance des phylum en fonction du type d'échantillon et de la localisation : 
 ```{r}
 # Extraire les données de phyloseq
 data <- psmelt(ps)
@@ -284,12 +284,12 @@ ggplot(data, aes(x = Type, y = Abundance, fill = Phylum)) +
   labs(x = "Type d'échantillon", y = "Abondance", fill = "Phylum")
 
 ```
-Ici nous voyons que nous n'avons pas les mêmes communautées bactériennes entre biofilms et sédiments (pas les mêmes Phylums) ni entre les 2 sites (pas les mêmes abondance de Phylums).  Les biofilms contiennent beaucoup moins de d'espèces bactériennes que les sédiments. Les sédiments contiennent notamment beaucoup plus de Firmicutes,Gemmatimonadetes et Proteobacteria. Ce qui est confirmé dans l'article.
+#Ici nous voyons que nous n'avons pas les mêmes communautées bactériennes entre biofilms et sédiments (pas les mêmes Phylums) ni entre les 2 sites (pas les mêmes abondance de Phylums).  Les biofilms contiennent beaucoup moins de d'espèces bactériennes que les sédiments. Les sédiments contiennent notamment beaucoup plus de Firmicutes,Gemmatimonadetes et Proteobacteria. Ce qui est confirmé dans l'article.
 
 
 
 
-Création de l'objet Phyloseq : 
+#Création de l'objet Phyloseq : 
 ```{r}
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
                sample_data(samdf), 
@@ -304,14 +304,14 @@ taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
 ps
 ```
 
-Graphiques d'alpha diversité :
+#Graphiques d'alpha diversité :
 ```{r}
 plot_richness(ps, x="Type", measures=c("Shannon", "Simpson", "Chao1"), color="Location")
 ```
-Ici nous voyons que les biofims ont systématiquement mois de diversité alpha que les sédiments, ce parterne avait aussi été monté dans l'article. En revanche dans l'article nous n'avions pas du tout les mêmes valeurs pour l'indice de Chao1 et Simpson.
+#Ici nous voyons que les biofims ont systématiquement mois de diversité alpha que les sédiments, ce parterne avait aussi été monté dans l'article. En revanche dans l'article nous n'avions pas du tout les mêmes valeurs pour l'indice de Chao1 et Simpson.
 
 
-Tableau des indices de diverisité alpha : 
+#Tableau des indices de diverisité alpha : 
 ```{r}
 # Charger les bibliothèques nécessaires
 library(phyloseq)
@@ -331,13 +331,13 @@ print(alpha_table)
 
 
 ```
-Nous observons que nous n'obtenons pas du tout les mêmes valeurs pour l'indice de Shannon que dans l'article. Dans l'article les indices de Shannon sont aux alentours de 11 pour les sédiments et de 8 pour les biofilms. Or ici nous avons des indices de Shannon allant de 1,78 à 4,70. Pour l'indice de Chao 1 aussi nous n'avons pas du tout les mêmes valeurs de l'article pour l'indice de Chao1 qui tient particulièrement compte des singletons. Dans l'article cet indice varie entre 2701 et 13132 alors qu'ici il varie entre 11 et 161. Ce qui voudrait dire qu'il y a beaucoup plus d'espèces très rares dans l'analyse de l'article que dans notre analyse. L'article utilise des OTU à 3% alors qu'ici Dada2 corrige les erreurs de séquençage et crée des ASV. Ces grandes différences sont étonnantes; soit il y a un problème dans l'analyse de nos données soit il y avait vraiment beaucoup d'erreurs de séquençage dans l'article.
+#Nous observons que nous n'obtenons pas du tout les mêmes valeurs pour l'indice de Shannon que dans l'article. Dans l'article les indices de Shannon sont aux alentours de 11 pour les sédiments et de 8 pour les biofilms. Or ici nous avons des indices de Shannon allant de 1,78 à 4,70. Pour l'indice de Chao 1 aussi nous n'avons pas du tout les mêmes valeurs de l'article pour l'indice de Chao1 qui tient particulièrement compte des singletons. Dans l'article cet indice varie entre 2701 et 13132 alors qu'ici il varie entre 11 et 161. Ce qui voudrait dire qu'il y a beaucoup plus d'espèces très rares dans l'analyse de l'article que dans notre analyse. L'article utilise des OTU à 3% alors qu'ici Dada2 corrige les erreurs de séquençage et crée des ASV. Ces grandes différences sont étonnantes; soit il y a un problème dans l'analyse de nos données soit il y avait vraiment beaucoup d'erreurs de séquençage dans l'article.
 
 
 
 
 
-Première figure de l'article : graphique des phylums en abondance relative : 
+#Première figure de l'article : graphique des phylums en abondance relative : 
 
 ```{r}
 library(phyloseq)
@@ -351,7 +351,7 @@ ps
 ```
 
 
-Graphique de l'abondance relative des Phylum
+#Graphique de l'abondance relative des Phylum
 ```{r}
 # Transformer les données en pourcentages (abondances relatives)
 ps_relative <- transform_sample_counts(ps, function(x) x / sum(x) * 100)
@@ -383,11 +383,11 @@ ggplot(df, aes(x = Sample, y = Abundance, fill = Phylum)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ```
-Les phylums dominants en abondance relative sont : Actinobacteroidota, Verrumicrobiota Firmicutes et Proteobacteria.
-Dans l'article il est dit que les 4 phylums dominants sont Proteobacteria, Actinobacteria , Acidobacteria et Chloroflexi.
+#Les phylums dominants en abondance relative sont : Actinobacteroidota, Verrumicrobiota Firmicutes et Proteobacteria.
+#Dans l'article il est dit que les 4 phylums dominants sont Proteobacteria, Actinobacteria , Acidobacteria et Chloroflexi.
 
 
-Ce même graphique mais séparé par localisation :
+#Ce même graphique mais séparé par localisation :
 ```{r}
 
 #Transformer les données en pourcentages (abondances relatives)
@@ -416,11 +416,11 @@ ggplot(df, aes(x = Sample, y = Abundance, fill = Phylum)) +
   ggtitle("Composition taxonomique par abondance relative des Phylum, et Localisation") +
   labs(x = "échantillon", y = "Relative abondance (%)", fill = "Phylum")
 ```
-Sur ce graphique nous voyans que le phylum Verrumicrobiota est beaucoup plus présent, en abondance relative sur le site Royal Palace que dans l'autre site. Il y a aussi plus de Gemmatimonadota (abondance relative) à Royal Palace. En revanche à Beng Mealea il y a plus d'abondance relative de Bactreroidota. Ces informations sur les différences de Phylums entre les 2 sites n'étaients pas très lisibles dans l'article.
+#Sur ce graphique nous voyans que le phylum Verrumicrobiota est beaucoup plus présent, en abondance relative sur le site Royal Palace que dans l'autre site. Il y a aussi plus de Gemmatimonadota (abondance relative) à Royal Palace. En revanche à Beng Mealea il y a plus d'abondance relative de Bactreroidota. Ces informations sur les différences de Phylums entre les 2 sites n'étaients pas très lisibles dans l'article.
 
 
 
-Afficher la matrice d'abondance : 
+#Afficher la matrice d'abondance : 
 ```{r}
 # Charger les bibliothèques nécessaires
 library(phyloseq)
@@ -442,8 +442,10 @@ print(abundance_df)
 ```
 
 
- Fabrication d'une heatmap : 
 
+#Fabrication d'une heatmap : 
+
+Acet endroit du code nous avons un problème. Nous avons perdu le code pour créer "otu_matrix" et nous n'arrivons pas a le refaire, cependant il est resté en mémoire dans l'environnement de travail. Nous ne pouvons donc pas faire le knit pour passer l'entièretée du code et des figure sur Github.
 ```{r}
 #Transform to phyloseq objects
 OTU = otu_table(otu_matrix, taxa_are_rows = TRUE)
@@ -470,64 +472,64 @@ total = median(sample_sums(carbom))
 ```{r}
 plot_heatmap(carbom, method = "NMDS", distance = "bray")
 ```
-Cette heat map m'est pas très lisible donc nous allons filtrer les données.
+#Cette heat map m'est pas très lisible donc nous allons filtrer les données.
 
-On ne garde que les OTU les plus importants donc supérieurs à 5 % pour faire la heatmap.
+#On ne garde que les OTU les plus importants donc supérieurs à 5 % pour faire la heatmap.
 ```{r}
 carbom_abund <- filter_taxa(carbom, function(x) sum(x > total*0.05) > 0, TRUE)
   carbom_abund
 
 otu_table(carbom_abund)[1:8, 1:5]
 ```
-Ha heatmap est faite grâce à une Analyse multidimensionnelle non métrique et un indice de Bray Curtis
+#La heatmap est faite grâce à une Analyse multidimensionnelle non métrique et un indice de Bray Curtis
 ```{r}
 plot_heatmap(carbom_abund, method = "NMDS", distance = "bray",
              taxa.label = "Class", taxa.order = "Class", 
              trans=NULL, low="beige", high="red", na.value="beige")
 ```
-SRR7132188 = RP-S1
-SRR7132189 = RP-F5
-SRR7132192 = BM-S1
-SRR7132193 = RP-F4
-SRR7132194 = RP-F3
-SRR7132195 = BM-F2
-SRR7132196 = RP-F2
-SRR7132197 = RP-F1
-SRR7132198 = BM-F1
-SRR7132199 = RP-S4
-SRR7132187 = RP-S2
-SRR7132190 = RP-S3
-SRR7132191 = BM-S2
+#SRR7132188 = RP-S1
+#SRR7132189 = RP-F5
+#SRR7132192 = BM-S1
+#SRR7132193 = RP-F4
+#SRR7132194 = RP-F3
+#SRR7132195 = BM-F2
+#SRR7132196 = RP-F2
+#SRR7132197 = RP-F1
+#SRR7132198 = BM-F1
+#SRR7132199 = RP-S4
+#SRR7132187 = RP-S2
+#SRR7132190 = RP-S3
+#SRR7132191 = BM-S2
 
-Sur cette heatmap il est visble que tous les biofilms de Royal Palace sont très riches en bactéries de la classe des Verrucomicrobidae, ils sont aussi assez riches en actinobactréria et blastocellia. On peut émmettre une hypothèse selon laquelle une très forte abondance de Verrucomicrobidae est un marqueur des biofilms de Royal Palace. 
-Il y a aussi un même paterne pour les Sediments 1,3 et 4 de Royal Palace avec beaucoup de Bacilli et de Thermoleophila. Cependant pour le sédiment n°2 (SRR7132187) de Royal Palace nous n'avons pas le même paterne.
+#Sur cette heatmap il est visble que tous les biofilms de Royal Palace sont très riches en bactéries de la classe des Verrucomicrobidae, ils sont aussi assez riches en actinobactréria et blastocellia. On peut émmettre une hypothèse selon laquelle une très forte abondance de Verrucomicrobidae est un marqueur des biofilms de Royal Palace. 
+#Il y a aussi un même paterne pour les Sediments 1,3 et 4 de Royal Palace avec beaucoup de Bacilli et de Thermoleophila. Cependant pour le sédiment n°2 (SRR7132187) de Royal Palace nous n'avons pas le même paterne.
 
-Sur la heatmap de l'article, faite au niveau des Phylum, on voit un même paterne pour les sédiments mais de paterne vraiment clair pour différencier les sédiments des 2 sites. On voit un autre paterne pour les biofilms, qui diffère dentre les 2 sites.
+#Sur la heatmap de l'article, faite au niveau des Phylum, on voit un même paterne pour les sédiments mais de paterne vraiment clair pour différencier les sédiments des 2 sites. On voit un autre paterne pour les biofilms, qui diffère dentre les 2 sites.
 
 
 
-Faire une ordination toujours avec une NMDS et un indice de Bray Curtis : 
+#Faire une ordination toujours avec une NMDS et un indice de Bray Curtis : 
 ```{r}
 carbom.ord <- ordinate(carbom, "NMDS", "bray")
 plot_ordination(carbom, carbom.ord, type="samples", color="Type", 
                   shape="Location", title="Samples") + geom_point(size=3)
 ```
-Sur cette NMDS on voit qu'il y a une grande différence au niveau de la composition bactériennes entre biofilms et sédiments. Ceci peut être expliqué par le sait qu'au niveau des biofilms donc à la surface des grès il y ait peu de nitriments disponibles. Les biofilms sont donc plutôt composés de bactéries autotrophes qui produisent des métabolites secondaires. Puis de plus en plus de bactéries peuvent se développer y compris des autotrophes. On aussi une différence marquée entre les communautées bactériennes des biofilms de Royal Palace et de Beng Mealea. En revanche il n'y a pas de différence très visible entre les sédiments des 2 sites. Toutes ces informations avait aussi été montrées sur l'ACP de l'article.
+#Sur cette NMDS on voit qu'il y a une grande différence au niveau de la composition bactériennes entre biofilms et sédiments. Ceci peut être expliqué par le sait qu'au niveau des biofilms donc à la surface des grès il y ait peu de nitriments disponibles. Les biofilms sont donc plutôt composés de bactéries autotrophes qui produisent des métabolites secondaires. Puis de plus en plus de bactéries peuvent se développer y compris des autotrophes. On aussi une différence marquée entre les communautées bactériennes des biofilms de Royal Palace et de Beng Mealea. En revanche il n'y a pas de différence très visible entre les sédiments des 2 sites. Toutes ces informations avait aussi été montrées sur l'ACP de l'article.
 
 
-Analyse en réseau : 
+#Analyse en réseau : 
 ```{r}
 plot_net(carbom, distance = "(A+B-2*J)/(A+B)", type = "taxa", 
            maxdist = 0.7, color="Class", point_label="Genus")
 ```
-Sur cette figure, 2 points proches sont 2 genres bactériens qui varient covarient selon les mêmes conditions environnementales dans le jeu de données. Par exemple Veillonelle et Streptococcus covarient. Mais ils ne covarient pas du tout avec Alicyclobacillus.
+#Sur cette figure, 2 points proches sont 2 genres bactériens qui varient covarient selon les mêmes conditions environnementales dans le jeu de données. Par exemple Veillonelle et Streptococcus covarient. Mais ils ne covarient pas du tout avec Alicyclobacillus.
 
 
-Conclusion : 
-Il y a une différence dans le traitement des données de l'aticle et notre analyse. Dans l'article des OTU à 3% ont été réalisées et nous avons utilisés Dada2 pour différencier les erreurs de séquençage des variants biologiques. Dada2 corrige aussi les erreurs de séquençage. Concernant les grandes conclusions de l'article nous obtenons les mêmes choses (différences majeures entre les communautés de biofilms et sédiments, différences moins importantes entre les 2 sites archéologiques). 
+#Conclusion : 
+#Il y a une différence dans le traitement des données de l'aticle et notre analyse. Dans l'article des OTU à 3% ont été réalisées et nous avons utilisés Dada2 pour différencier les erreurs de séquençage des variants biologiques. Dada2 corrige aussi les erreurs de séquençage. Concernant les grandes conclusions de l'article nous obtenons les mêmes choses (différences majeures entre les communautés de biofilms et sédiments, différences moins importantes entre les 2 sites archéologiques). 
 
-En revanches nos avons quelques différences avec les conclusions de l'article concernat les phylums dominants.
-Nous que les phylums prédominants sont les Actinobacteriota, Firmicutes et Acidobacteriota. 
-Dans l'article les phylums dominants présentés sont Proteobacteria, Actinobacteriota, Acidobacteriota et Chloroflexi. Les Firmicutes et les Gemmatimonadetes étaient les phylums dominants détectés uniquement dans les sédiments, tandis que les Cyanobacteria, Chloroflexi et les bactéries "non attribuées" étaient plus abondantes dans les biofilms..
+#En revanches nos avons quelques différences avec les conclusions de l'article concernat les phylums dominants.
+#Nous que les phylums prédominants sont les Actinobacteriota, Firmicutes et Acidobacteriota. 
+#Dans l'article les phylums dominants présentés sont Proteobacteria, Actinobacteriota, Acidobacteriota et Chloroflexi. Les Firmicutes et les Gemmatimonadetes étaient les phylums dominants détectés uniquement dans les sédiments, tandis que les Cyanobacteria, Chloroflexi et les bactéries "non attribuées" étaient plus abondantes dans les biofilms..
 
-Aussi concernant les indices de diversité nous ne trouvons pas du tout les mêmes valeurs concernan les indice de Chao1 et de Shannon.
+#Aussi concernant les indices de diversité nous ne trouvons pas du tout les mêmes valeurs concernan les indice de Chao1 et de Shannon.
